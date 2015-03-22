@@ -1,14 +1,15 @@
 #include "ScriptPCH.h"
+#include "Language.h"
 
 class Professions_NPC : public CreatureScript
 {
         public:
                 Professions_NPC () : CreatureScript("Professions_NPC") {}
-                
+
                 void CreatureWhisperBasedOnBool(const char *text, Creature *_creature, Player *pPlayer, bool value)
                 {
                         if (value)
-                                _creature->MonsterWhisper(text, pPlayer->GetGUID());
+                                _creature->MonsterWhisper(text, pPlayer->ToPlayer());
                 }
 
                 uint32 PlayerMaxLevel() const
@@ -27,7 +28,7 @@ class Professions_NPC : public CreatureScript
                         pPlayer->PlayerTalkClass->SendGossipMenu(907, _creature->GetGUID());
                         return true;
                 }
-                
+
                 bool PlayerAlreadyHasTwoProfessions(const Player *pPlayer) const
                 {
                         uint32 skillCount = 0;
@@ -39,7 +40,7 @@ class Professions_NPC : public CreatureScript
                         if (pPlayer->HasSkill(SKILL_HERBALISM))
                                 skillCount++;
 
-                        if (skillCount >= 6)
+                        if (skillCount >= 2)
                                 return true;
 
                         for (uint32 i = 1; i < sSkillLineStore.GetNumRows(); ++i)
@@ -58,7 +59,7 @@ class Professions_NPC : public CreatureScript
                                 if (pPlayer->HasSkill(skillID))
                                         skillCount++;
 
-                                if (skillCount >= 6)
+                                if (skillCount >= 2)
                                         return true;
                         }
                         return false;
@@ -66,7 +67,7 @@ class Professions_NPC : public CreatureScript
 
                 bool LearnAllRecipesInProfession(Player *pPlayer, SkillType skill)
                 {
-                        ChatHandler handler(pPlayer);
+                        ChatHandler handler(pPlayer->GetSession());
                         char* skill_name;
 
                         SkillLineEntry const *SkillInfo = sSkillLineStore.LookupEntry(skill);
@@ -74,18 +75,18 @@ class Professions_NPC : public CreatureScript
 
                         if (!SkillInfo)
                         {
-                                sLog->outError("Profession NPC: received non-valid skill ID (LearnAllRecipesInProfession)");
-                                return false;
-                        }       
+                                // sLog->outError(LOG_FILTER_PLAYER_SKILLS, "Profession NPC: received non-valid skill ID (LearnAllRecipesInProfession)");
+								return false;
+                        }
 
                         LearnSkillRecipesHelper(pPlayer, SkillInfo->id);
 
                         pPlayer->SetSkill(SkillInfo->id, pPlayer->GetSkillStep(SkillInfo->id), 450, 450);
                         handler.PSendSysMessage(LANG_COMMAND_LEARN_ALL_RECIPES, skill_name);
-                
+
                         return true;
                 }
-        
+
                 void LearnSkillRecipesHelper(Player *player, uint32 skill_id)
                 {
                         uint32 classmask = player->getClassMask();
@@ -115,7 +116,7 @@ class Professions_NPC : public CreatureScript
                                 SpellInfo const * spellInfo = sSpellMgr->GetSpellInfo(skillLine->spellId);
                                 if (!spellInfo || !SpellMgr::IsSpellValid(spellInfo, player, false))
                                         continue;
-                                
+
                                 player->learnSpell(skillLine->spellId, false);
                         }
                 }
@@ -128,38 +129,37 @@ class Professions_NPC : public CreatureScript
                 void CompleteLearnProfession(Player *pPlayer, Creature *pCreature, SkillType skill)
                 {
                         if (PlayerAlreadyHasTwoProfessions(pPlayer) && !IsSecondarySkill(skill))
-                                pCreature->MonsterWhisper("You already know 6 professions!", pPlayer->GetGUID());
+                                pCreature->MonsterWhisper("You already know two professions!", pPlayer->ToPlayer());
                         else
                         {
                                 if (!LearnAllRecipesInProfession(pPlayer, skill))
-                                        pCreature->MonsterWhisper("Internal error occured!", pPlayer->GetGUID());
+                                        pCreature->MonsterWhisper("Internal error occured!", pPlayer->ToPlayer());
                         }
                 }
-        
+
                 bool OnGossipSelect(Player* pPlayer, Creature* _creature, uint32 uiSender, uint32 uiAction)
                 { 
                         pPlayer->PlayerTalkClass->ClearMenus();
-        
+
                         if (uiSender == GOSSIP_SENDER_MAIN)
                         {
-                
+
                                 switch (uiAction)
                                 {
                                         case 196:
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Alchemy", GOSSIP_SENDER_MAIN, 1);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Blacksmithing", GOSSIP_SENDER_MAIN, 2);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Leatherworking", GOSSIP_SENDER_MAIN, 3);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Tailoring", GOSSIP_SENDER_MAIN, 4);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Engineering", GOSSIP_SENDER_MAIN, 5);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Enchanting", GOSSIP_SENDER_MAIN, 6);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Jewelcrafting", GOSSIP_SENDER_MAIN, 7);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Inscription", GOSSIP_SENDER_MAIN, 8);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Cooking", GOSSIP_SENDER_MAIN, 9);
-                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "First Aid", GOSSIP_SENDER_MAIN, 10);
-						      pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Herbalism", GOSSIP_SENDER_MAIN, 11);
-							pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Skinning", GOSSIP_SENDER_MAIN, 12);
-							pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Mining", GOSSIP_SENDER_MAIN, 13);
-							pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_VENDOR, "Professions Items", GOSSIP_SENDER_MAIN, 14);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "ALCHEMY", GOSSIP_SENDER_MAIN, 1);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "BLACKSMITHING", GOSSIP_SENDER_MAIN, 2);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "LEATHERWORKING", GOSSIP_SENDER_MAIN, 3);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "TAILORING", GOSSIP_SENDER_MAIN, 4);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "ENGINEERING", GOSSIP_SENDER_MAIN, 5);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "ENCHANTING", GOSSIP_SENDER_MAIN, 6);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "JEWELCRAFTING", GOSSIP_SENDER_MAIN, 7);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "INSCRIPTION", GOSSIP_SENDER_MAIN, 8);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "COOKING", GOSSIP_SENDER_MAIN, 9);
+                                                pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "FIRST AID", GOSSIP_SENDER_MAIN, 10);
+												pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "HERBALISM", GOSSIP_SENDER_MAIN, 11);
+												pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "SKINING", GOSSIP_SENDER_MAIN, 12);
+												pPlayer->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "MINING", GOSSIP_SENDER_MAIN, 13);
 
                                                 pPlayer->PlayerTalkClass->SendGossipMenu(907, _creature->GetGUID());
                                                 break;
@@ -270,7 +270,7 @@ class Professions_NPC : public CreatureScript
 												pPlayer->PlayerTalkClass->SendCloseGossip();
 												break;
 											}
-											
+
 											CompleteLearnProfession(pPlayer, _creature, SKILL_HERBALISM);
 											pPlayer->PlayerTalkClass->SendCloseGossip();
 											break;
@@ -280,7 +280,7 @@ class Professions_NPC : public CreatureScript
 												pPlayer->PlayerTalkClass->SendCloseGossip();
 												break;
 											}
-											
+
 											CompleteLearnProfession(pPlayer, _creature, SKILL_SKINNING);
 											pPlayer->PlayerTalkClass->SendCloseGossip();
 											break;
@@ -290,16 +290,13 @@ class Professions_NPC : public CreatureScript
 												pPlayer->PlayerTalkClass->SendCloseGossip();
 												break;
 											}
-											
+
 											CompleteLearnProfession(pPlayer, _creature, SKILL_MINING);
 											pPlayer->PlayerTalkClass->SendCloseGossip();
 											break;
-                                        case 14:
-                                                pPlayer->GetSession()->SendListInventory(_creature->GetGUID());
-                                                break;
                                 }
 
-        
+
                         }
                         return true;
                 }
