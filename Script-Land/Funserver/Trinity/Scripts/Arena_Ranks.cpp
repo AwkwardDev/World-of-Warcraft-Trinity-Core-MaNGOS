@@ -14,9 +14,9 @@
 #include "World.h"
 
 enum ArenaRankActionIds {
+    ARENA_1V1_LADDER = GOSSIP_ACTION_INFO_DEF + 3,
     ARENA_2V2_LADDER = GOSSIP_ACTION_INFO_DEF + 1,
     ARENA_3V3_LADDER = GOSSIP_ACTION_INFO_DEF + 2,
-    ARENA_5V5_LADDER = GOSSIP_ACTION_INFO_DEF + 3,
     ARENA_GOODBYE = GOSSIP_ACTION_INFO_DEF + 4,
     ARENA_NOOP = 1,
     ARENA_START_TEAM_LOOKUP = GOSSIP_ACTION_INFO_DEF + 5,
@@ -41,18 +41,18 @@ class ArenaTeamRanks : public CreatureScript
         uint32 optionToTeamType(uint32 option) {
             uint32 teamType;
             switch(option) {
+            	case ARENA_1V1_LADDER: teamType = 1; break;
                 case ARENA_2V2_LADDER: teamType = 2; break;
                 case ARENA_3V3_LADDER: teamType = 3; break;
-                case ARENA_5V5_LADDER: teamType = 5; break;
             }
             return teamType;
         }
         uint32 teamTypeToOption(uint32 teamType) {
             uint32 option;
             switch(teamType) {
+            	case 5: option = ARENA_1V1_LADDER; break;
                 case 2: option = ARENA_2V2_LADDER; break;
                 case 3: option = ARENA_3V3_LADDER; break;
-                case 5: option = ARENA_5V5_LADDER; break;
             }
             return option;
         }
@@ -71,10 +71,6 @@ class ArenaTeamRanks : public CreatureScript
                 case RACE_TROLL:            race_s = "Troll";       break;
                 case RACE_BLOODELF:         race_s = "Blood Elf";   break;
                 case RACE_DRAENEI:          race_s = "Draenei";     break;
-                case RACE_NAGA:             race_s = "Naga";  	     break;
-                case RACE_GOBLIN:           race_s = "Goblin";      break;
-                case RACE_BROKEN:           race_s = "Broken";  	     break;
-                case RACE_VRYKUL:           race_s = "Vrykul";      break;
             }
             return race_s;
         }
@@ -123,9 +119,9 @@ class ArenaTeamRanks : public CreatureScript
         ArenaTeamRanks() : CreatureScript("ArenaTeamRanks"){}
         
         bool OnGossipHello(Player *player, Creature *creature) {
+            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_BATTLE, "1v1 Rankings", GOSSIP_SENDER_MAIN, ARENA_1V1_LADDER);
             player->ADD_GOSSIP_ITEM(GOSSIP_ICON_BATTLE, "2v2 Rankings", GOSSIP_SENDER_MAIN, ARENA_2V2_LADDER);
             player->ADD_GOSSIP_ITEM(GOSSIP_ICON_BATTLE, "3v3 Rankings", GOSSIP_SENDER_MAIN, ARENA_3V3_LADDER);
-            player->ADD_GOSSIP_ITEM(GOSSIP_ICON_BATTLE, "5v5 Rankings", GOSSIP_SENDER_MAIN, ARENA_5V5_LADDER);
             
             player->SEND_GOSSIP_MENU(ARENA_GOSSIP_HELLO, creature->GetGUID());
             
@@ -141,8 +137,8 @@ class ArenaTeamRanks : public CreatureScript
                     player->PlayerTalkClass->SendCloseGossip();
                     break;
                 }
+                case ARENA_1V1_LADDER:
                 case ARENA_2V2_LADDER:
-                case ARENA_5V5_LADDER:
                 case ARENA_3V3_LADDER:
                 {
                     uint32 teamType = optionToTeamType(uiAction);
@@ -292,138 +288,7 @@ class ArenaTeamRanks : public CreatureScript
         }
 };
 
-class npc_matchmakerrating : public CreatureScript
-{
-    public:
-        npc_matchmakerrating() : CreatureScript("npc_matchmakerrating") { }
-
-		uint16* GetMmr(Player *player)
-		{
-			uint16 *mmr = new uint16[3];
-			for(int x = 0; x < 3; x++)
-			{
-				if(ArenaTeam *twos = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(x)))
-					mmr[x] = twos->GetMember(player->GetGUID())->MatchMakerRating;
-				else
-					mmr[x] = 0;
-			}
-			return mmr;
-		}
-
-		bool ChangeMmr(Player *player, int slot, int value)
-		{
-			if(ArenaTeam *team = sArenaTeamMgr->GetArenaTeamById(player->GetArenaTeamId(slot)))
-			{
-				ArenaTeamMember *member = team->GetMember(player->GetGUID());
-				member->MatchMakerRating = value;
-				member->ModifyMatchmakerRating(value - (int)member->MatchMakerRating, slot);
-				team->SaveToDB();
-				return true;
-			}
-			return false;
-		}
-
-        bool OnGossipHello(Player *player, Creature *_creature)
-		{
-			uint16 *mmr = GetMmr(player);
-
-			if(mmr[0] > 0)
-			{
-				player->ADD_GOSSIP_ITEM(0, "Reset 2v2 MMR (5 PvP Tickets)", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-				if(mmr[0] > 1600)
-					player->ADD_GOSSIP_ITEM(0, "Lower 2v2 MMR to 1600", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-			}
-
-			if(mmr[1] > 0)
-			{
-				player->ADD_GOSSIP_ITEM(0, "Reset 3v3 MMR (10 PvP Tickets)", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-				if(mmr[1] > 1500)
-					player->ADD_GOSSIP_ITEM(0, "Lower 3v3 MMR to 1500", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
-			}
-
-			if(mmr[2] > 0)
-			{
-				player->ADD_GOSSIP_ITEM(0, "Reset 5v5 MMR (15 PvP Tickets)", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
-				if(mmr[1] > 1400)
-					player->ADD_GOSSIP_ITEM(0, "Lower 5v5 MMR to 1400", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);
-			}
-
-			player->ADD_GOSSIP_ITEM(GOSSIP_ICON_CHAT, "Bye", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF+7);
-            
-			player->SEND_GOSSIP_MENU(DEFAULT_GOSSIP_MESSAGE, _creature->GetGUID());
-			return true;
-		}
-
-        bool OnGossipSelect(Player *player, Creature *_creature, uint32 sender, uint32 action)
-        {
-            if (action < GOSSIP_ACTION_INFO_DEF + 7)
-            {
-				uint16 *mmr = GetMmr(player);
-				switch(action - GOSSIP_ACTION_INFO_DEF)
-				{
-					case 1:
-						if(mmr[0] > 0 && player->HasItemCount(19182, 5))
-						{
-							if(ChangeMmr(player, 0, 1500))
-							{
-								player->DestroyItemCount(19182, 5, true);
-								player->SaveToDB();
-							}
-						}
-						break;
-					case 2:
-						if(mmr[0] > 1600)
-						{
-							if(ChangeMmr(player, 0, 2100))
-								player->SaveToDB();
-						}
-						break;
-					case 3:
-						if(mmr[1] > 0 && player->HasItemCount(19182, 10))
-						{
-							if(ChangeMmr(player, 1, 1500))
-							{
-								player->DestroyItemCount(19182, 10, true);
-								player->SaveToDB();
-							}
-						}
-						break;
-					case 4:
-						if(mmr[1] > 1500)
-						{
-							if(ChangeMmr(player, 1, 2000))
-								player->SaveToDB();
-						}
-						break;
-					case 5:
-						if(mmr[2] > 0 && player->HasItemCount(19182, 15))
-						{
-							if(ChangeMmr(player, 2, 1500))
-							{
-								player->DestroyItemCount(19182, 15, true);
-								player->SaveToDB();
-							}
-						}
-						break;
-					case 6:
-						if(mmr[2] > 1400)
-						{
-							if(ChangeMmr(player, 2, 1900))
-								player->SaveToDB();
-						}
-						break;
-					default:
-						break;
-				}
-			}
-
-			player->CLOSE_GOSSIP_MENU();
-			return true;
-		}
-};
-
 void AddSC_arenateamranks()
 {
     new ArenaTeamRanks();
-    new npc_matchmakerrating();
 }
